@@ -22,8 +22,7 @@ let lastCommitId = null;
 
 const client = new Client({ intents: [
                                 GatewayIntentBits.Guilds,
-                                GatewayIntentBits.GuildMessages,
-                                GatewayIntentBits.MessageContent
+                                GatewayIntentBits.GuildMessages
                             ] });
 
 async function checkForNewCommits() {
