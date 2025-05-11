@@ -20,7 +20,11 @@ const DIVERSION_BEARER_TOKEN = process.env.DIVERSION_BEARER_TOKEN;
 
 let lastCommitId = null;
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages] });
+const client = new Client({ intents: [
+                                GatewayIntentBits.Guilds,
+                                GatewayIntentBits.GuildMessages,
+                                GatewayIntentBits.MessageContent
+                            ] });
 
 async function checkForNewCommits() {
   try {
@@ -64,6 +68,7 @@ client.on('messageCreate', (message) => {
   // Check if the message content is "dd bot"
   if (message.content.toLowerCase() === 'dd bot') {
     message.channel.send('This is a test response called by dd bot');
+    console.log(`✅ Test response sent`);
   }
 });
 
