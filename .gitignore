@@ -1,0 +1,14 @@
+# Don't commit local dependencies
+node_modules/
+
+# Don't commit environment variables
+.env
+
+# Don't commit log files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS-specific stuff
+.DS_Store
+Thumbs.db
