@@ -1,6 +1,6 @@
 
 
-require('dotenv').config();
+import 'dotenv/config'; // Load environment variables from .env file
 import { Client, GatewayIntentBits } from 'discord.js';
 import fetch from 'node-fetch';
 
