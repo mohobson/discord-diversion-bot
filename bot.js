@@ -1,8 +1,16 @@
-
+// This bot checks for new commits in the Diversion repository and sends a message to a Discord channel when a new commit is found.
+// It uses the Discord.js library to interact with the Discord API and node-fetch to make HTTP requests.
+// It also uses dotenv to load environment variables from a .env file.
 
 import 'dotenv/config'; // Load environment variables from .env file
 import { Client, GatewayIntentBits } from 'discord.js';
 import fetch from 'node-fetch';
+
+import http from 'http';
+http.createServer((req, res) => {
+  res.writeHead(200);
+  res.end('Bot is running');
+}).listen(process.env.PORT || 3000);
 
 // Load from .env
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
