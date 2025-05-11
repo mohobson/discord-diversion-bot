@@ -1,8 +1,8 @@
 
 
 require('dotenv').config();
-const { Client, GatewayIntentBits } = require('discord.js');
-const fetch = require('node-fetch');
+import { Client, GatewayIntentBits } from 'discord.js';
+import fetch from 'node-fetch';
 
 // Load from .env
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
