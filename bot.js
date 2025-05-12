@@ -60,15 +60,4 @@ client.once('ready', () => {
   setInterval(checkForNewCommits, 5 * 60 * 1000); // Poll every 5 minutes
 });
 
-client.on('messageCreate', (message) => {
-  // Ignore messages from the bot itself
-  if (message.author.bot) return;
-
-  // Check if the message content is "dd bot"
-  if (message.content.toLowerCase() === 'dd bot') {
-    message.channel.send('This is a test response called by dd bot');
-    console.log(`✅ Test response sent`);
-  }
-});
-
 client.login(DISCORD_TOKEN);
