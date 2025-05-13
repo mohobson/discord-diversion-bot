@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: diversion-discord-bot
+    name: discord-diversion-bot
     runtime: docker
     repo: https://github.com/mohobson/diversion-discord-bot
     branch: master
