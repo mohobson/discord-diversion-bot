@@ -3,7 +3,7 @@
 // It also uses dotenv to load environment variables from a .env file.
 
 import 'dotenv/config'; // Load environment variables from .env file
-import { Client, GatewayIntentBits } from 'discord.js';
+import { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, Events } from 'discord.js'; // Add `REST`, `Routes`, etc.
 import fetch from 'node-fetch';
 
 import http from 'http';
@@ -18,12 +18,16 @@ const CHANNEL_ID = process.env.CHANNEL_ID;
 const DIVERSION_API_URL = process.env.DIVERSION_API_URL;
 const DIVERSION_BEARER_TOKEN = process.env.DIVERSION_BEARER_TOKEN;
 
+// 🔧 Add your Guild ID (for testing in your server)
+const GUILD_ID = process.env.GUILD_ID;
+
 let lastCommitId = null;
 
 const client = new Client({ intents: [
-                                GatewayIntentBits.Guilds,
-                                GatewayIntentBits.GuildMessages
-                            ] });
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+] });
 
 async function checkForNewCommits() {
   try {
@@ -55,9 +59,39 @@ async function checkForNewCommits() {
   }
 }
 
-client.once('ready', () => {
+// ✅ Register slash command once
+client.once('ready', async () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
+
+  // Register /ping command
+  const rest = new REST({ version: '10' }).setToken(DISCORD_TOKEN);
+
+  const commands = [
+    new SlashCommandBuilder().setName('ping').setDescription('Replies with Pong!'),
+  ].map(cmd => cmd.toJSON());
+
+  try {
+    console.log('⏳ Registering slash command...');
+    await rest.put(
+      Routes.applicationGuildCommands(CHANNEL_ID, GUILD_ID),
+      { body: commands }
+    );
+    console.log('✅ Slash command registered');
+  } catch (error) {
+    console.error('❌ Failed to register slash command:', error);
+  }
+
   setInterval(checkForNewCommits, 5 * 60 * 1000); // Poll every 5 minutes
 });
 
+// ✅ Respond to the slash command
+client.on(Events.InteractionCreate, async interaction => {
+  if (!interaction.isChatInputCommand()) return;
+
+  if (interaction.commandName === 'ping') {
+    await interaction.reply('🏓 Pong!');
+  }
+});
+
 client.login(DISCORD_TOKEN);
+
