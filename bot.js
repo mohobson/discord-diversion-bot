@@ -18,7 +18,8 @@ const CHANNEL_ID = process.env.CHANNEL_ID;
 const DIVERSION_API_URL = process.env.DIVERSION_API_URL;
 const DIVERSION_BEARER_TOKEN = process.env.DIVERSION_BEARER_TOKEN;
 
-// 🔧 Add your Guild ID (for testing in your server)
+// 🔧 Add your Application ID and Guild ID (for testing in your server)
+const CLIENT_ID = process.env.CLIENT_ID;
 const GUILD_ID = process.env.GUILD_ID;
 
 let lastCommitId = null;
@@ -73,7 +74,7 @@ client.once('ready', async () => {
   try {
     console.log('⏳ Registering slash command...');
     await rest.put(
-      Routes.applicationGuildCommands(CHANNEL_ID, GUILD_ID),
+      Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
       { body: commands }
     );
     console.log('✅ Slash command registered');
@@ -94,4 +95,3 @@ client.on(Events.InteractionCreate, async interaction => {
 });
 
 client.login(DISCORD_TOKEN);
-
