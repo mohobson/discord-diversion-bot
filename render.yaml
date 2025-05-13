@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: diversion-discord-bot
+    repo: https://github.com/yourusername/diversion-discord-bot
+    branch: main
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: DISCORD_TOKEN
+        sync: false
+      - key: CHANNEL_ID
+        sync: false
+      - key: DIVERSION_API_URL
+        sync: false
+      - key: DIVERSION_BEARER_TOKEN
+        sync: false
+    plan: free
