@@ -3,7 +3,7 @@ services:
     name: diversion-discord-bot
     runtime: docker
     repo: https://github.com/mohobson/diversion-discord-bot
-    branch: main
+    branch: master
     dockerfilePath: ./Dockerfile
     plan: free
     envVars:
