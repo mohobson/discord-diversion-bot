@@ -149,6 +149,9 @@ client.once('ready', async () => {
     new SlashCommandBuilder()
       .setName('status')
       .setDescription('Shows the latest commit from Diversion repository'),
+    new SlashCommandBuilder()
+      .setName('test')
+      .setDescription('Test the Diversion API connection'),
   ].map(cmd => cmd.toJSON());
 
   try {
@@ -250,24 +253,55 @@ async function getLatestCommit() {
   }
 }
 
+// Add function to test API connection
+async function testDiversionAPI() {
+  try {
+    console.log('Testing Diversion API connection...');
+    const options = {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${DIVERSION_BEARER_TOKEN}`
+      }
+    };
+
+    // First try listing repositories
+    const reposRes = await fetch('https://api.diversion.dev/v0/repos', options);
+    if (!reposRes.ok) {
+      throw new Error(`Failed to list repositories: ${reposRes.status} - ${await reposRes.text()}`);
+    }
+    const repos = await reposRes.json();
+    
+    // Then try accessing the specific repository
+    const repoRes = await fetch(DIVERSION_API_URL, options);
+    if (!repoRes.ok) {
+      throw new Error(`Failed to access repository: ${repoRes.status} - ${await repoRes.text()}`);
+    }
+    const commits = await repoRes.json();
+
+    return {
+      success: true,
+      repos: repos,
+      commits: commits,
+      message: 'API connection successful'
+    };
+  } catch (err) {
+    console.error('API test failed:', err);
+    return {
+      success: false,
+      error: err.message
+    };
+  }
+}
+
 // Update interaction handler
 client.on(Events.InteractionCreate, async interaction => {
   if (!interaction.isChatInputCommand()) return;
 
   try {
-    // Defer the reply immediately to prevent timeout
     await interaction.deferReply();
 
     if (interaction.commandName === 'ping') {
-      try {
-        await interaction.editReply('🏓 Pong!');
-      } catch (error) {
-        if (error.code === 10062) {
-          console.log('Interaction expired, ignoring.');
-        } else {
-          console.error('Error sending ping response:', error);
-        }
-      }
+      await interaction.editReply('🏓 Pong!');
     } 
     else if (interaction.commandName === 'status') {
       try {
@@ -277,7 +311,6 @@ client.on(Events.InteractionCreate, async interaction => {
             + `Author: **${latest.author_name || latest.author}**\n`
             + `Message: ${latest.commit_message || latest.message}\n`
             + `Branch: ${latest.branch || 'main'}\n`
-            + `Workspace: ${latest.workspace || 'N/A'}\n`
             + `Time: ${new Date(latest.timestamp || latest.date).toLocaleString()}`;
           
           await interaction.editReply(statusMessage);
@@ -289,9 +322,17 @@ client.on(Events.InteractionCreate, async interaction => {
         await interaction.editReply('❌ Failed to fetch repository status. Check the logs for details.');
       }
     }
+    else if (interaction.commandName === 'test') {
+      const result = await testDiversionAPI();
+      if (result.success) {
+        const repoList = result.repos.map(r => `- ${r.name}`).join('\n');
+        await interaction.editReply(`✅ API Connection Test Successful!\n\nAvailable repositories:\n${repoList}`);
+      } else {
+        await interaction.editReply(`❌ API Connection Test Failed:\n${result.error}`);
+      }
+    }
   } catch (error) {
     console.error('Error handling interaction:', error);
-    // Try to send an error message if we can
     try {
       if (!interaction.replied && !interaction.deferred) {
         await interaction.reply({ content: 'There was an error processing your command!', ephemeral: true });
