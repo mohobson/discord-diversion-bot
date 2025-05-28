@@ -204,40 +204,61 @@ client.once('ready', async () => {
   setInterval(checkForNewCommits, 5 * 60 * 1000); // Poll every 5 minutes
 });
 
-// Add function to fetch latest commit
+// Add function to validate and clean bearer token
+function cleanBearerToken(token) {
+  if (!token) return null;
+  // Remove any whitespace and quotes
+  token = token.trim().replace(/^["']|["']$/g, '');
+  // Remove 'Bearer ' prefix if present
+  token = token.replace(/^Bearer\s+/i, '');
+  return token;
+}
+
 async function getLatestCommit() {
   try {
-    console.log(`Fetching commits from: ${DIVERSION_API_URL}`);
+    console.log('Fetching commits from:', DIVERSION_API_URL);
     
-    // Simplified headers to match documentation
+    const token = cleanBearerToken(DIVERSION_BEARER_TOKEN);
+    if (!token) {
+      throw new Error('Bearer token is missing or invalid');
+    }
+
+    // Log headers for debugging (without the actual token)
+    console.log('Request headers:', {
+      Authorization: 'Bearer [TOKEN]',
+      Accept: 'application/json',
+      'Content-Type': 'application/json'
+    });
+
     const options = {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${DIVERSION_BEARER_TOKEN}`
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
       }
     };
 
     const res = await fetch(DIVERSION_API_URL, options);
+    const responseText = await res.text(); // Get raw response text first
+
+    console.log('Response status:', res.status);
+    console.log('Response headers:', Object.fromEntries(res.headers.entries()));
+    console.log('Raw response:', responseText);
 
     if (!res.ok) {
-      const errorText = await res.text();
-      console.error('Diversion API Error Response:', errorText);
-      
-      // Add more specific error handling
-      if (res.status === 404) {
-        console.error('Repository not found. Please verify:');
-        console.error(`1. Repository name: ${DIVERSION_REPO_NAME}`);
-        console.error('2. API URL format is correct');
-        console.error('3. Bearer token has correct permissions');
-      } else if (res.status === 401) {
-        console.error('Authentication failed. Please check your bearer token.');
-      }
-      
-      throw new Error(`Diversion API Error: ${res.status} - ${errorText}`);
+      throw new Error(`Diversion API Error: ${res.status} - ${responseText}`);
     }
 
-    const data = await res.json();
-    console.log('Diversion API Response:', JSON.stringify(data, null, 2)); // Debug log
+    // Try to parse the response as JSON
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (e) {
+      throw new Error(`Failed to parse response as JSON: ${responseText}`);
+    }
+
+    console.log('Parsed response:', JSON.stringify(data, null, 2));
 
     // Handle both array and object responses
     const commits = Array.isArray(data) ? data : data.commits || [];
@@ -248,35 +269,57 @@ async function getLatestCommit() {
     console.log('No commits found in repository');
     return null;
   } catch (err) {
-    console.error('Error fetching latest commit:', err);
+    console.error('Error in getLatestCommit:', err);
     throw err;
   }
 }
 
-// Add function to test API connection
+// Update testDiversionAPI function with similar improvements
 async function testDiversionAPI() {
   try {
     console.log('Testing Diversion API connection...');
+    
+    const token = cleanBearerToken(DIVERSION_BEARER_TOKEN);
+    if (!token) {
+      throw new Error('Bearer token is missing or invalid');
+    }
+
     const options = {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${DIVERSION_BEARER_TOKEN}`
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
       }
     };
 
     // First try listing repositories
+    console.log('Testing /v0/repos endpoint...');
     const reposRes = await fetch('https://api.diversion.dev/v0/repos', options);
+    const reposText = await reposRes.text();
+    
+    console.log('Repos response status:', reposRes.status);
+    console.log('Repos raw response:', reposText);
+
     if (!reposRes.ok) {
-      throw new Error(`Failed to list repositories: ${reposRes.status} - ${await reposRes.text()}`);
+      throw new Error(`Failed to list repositories: ${reposRes.status} - ${reposText}`);
     }
-    const repos = await reposRes.json();
+
+    const repos = JSON.parse(reposText);
     
     // Then try accessing the specific repository
+    console.log('Testing specific repository endpoint:', DIVERSION_API_URL);
     const repoRes = await fetch(DIVERSION_API_URL, options);
+    const repoText = await repoRes.text();
+
+    console.log('Repository response status:', repoRes.status);
+    console.log('Repository raw response:', repoText);
+
     if (!repoRes.ok) {
-      throw new Error(`Failed to access repository: ${repoRes.status} - ${await repoRes.text()}`);
+      throw new Error(`Failed to access repository: ${repoRes.status} - ${repoText}`);
     }
-    const commits = await repoRes.json();
+
+    const commits = JSON.parse(repoText);
 
     return {
       success: true,
@@ -298,46 +341,94 @@ client.on(Events.InteractionCreate, async interaction => {
   if (!interaction.isChatInputCommand()) return;
 
   try {
-    await interaction.deferReply();
-
-    if (interaction.commandName === 'ping') {
-      await interaction.editReply('🏓 Pong!');
-    } 
-    else if (interaction.commandName === 'status') {
-      try {
-        const latest = await getLatestCommit();
-        if (latest) {
-          const statusMessage = `📊 Latest Commit Status:\n`
-            + `Author: **${latest.author_name || latest.author}**\n`
-            + `Message: ${latest.commit_message || latest.message}\n`
-            + `Branch: ${latest.branch || 'main'}\n`
-            + `Time: ${new Date(latest.timestamp || latest.date).toLocaleString()}`;
-          
-          await interaction.editReply(statusMessage);
-        } else {
-          await interaction.editReply('❌ No commits found in the repository.');
-        }
-      } catch (error) {
-        console.error('Error fetching status:', error);
-        await interaction.editReply('❌ Failed to fetch repository status. Check the logs for details.');
-      }
+    // For status command, defer reply first before making API calls
+    if (interaction.commandName === 'status' || interaction.commandName === 'test') {
+      await interaction.deferReply().catch(error => {
+        console.warn('Failed to defer reply:', error);
+        return; // Continue execution even if defer fails
+      });
     }
-    else if (interaction.commandName === 'test') {
-      const result = await testDiversionAPI();
-      if (result.success) {
-        const repoList = result.repos.map(r => `- ${r.name}`).join('\n');
-        await interaction.editReply(`✅ API Connection Test Successful!\n\nAvailable repositories:\n${repoList}`);
-      } else {
-        await interaction.editReply(`❌ API Connection Test Failed:\n${result.error}`);
-      }
+
+    switch (interaction.commandName) {
+      case 'ping':
+        await interaction.reply('🏓 Pong!').catch(error => {
+          console.warn('Failed to send ping response:', error);
+        });
+        break;
+
+      case 'status':
+        try {
+          const latest = await getLatestCommit();
+          if (latest) {
+            const statusMessage = `📊 Latest Commit Status:\n`
+              + `Author: **${latest.author_name || latest.author}**\n`
+              + `Message: ${latest.commit_message || latest.message}\n`
+              + `Branch: ${latest.branch || 'main'}\n`
+              + `Time: ${new Date(latest.timestamp || latest.date).toLocaleString()}`;
+            
+            if (interaction.deferred) {
+              await interaction.editReply(statusMessage).catch(error => {
+                console.warn('Failed to edit reply:', error);
+              });
+            } else {
+              await interaction.reply(statusMessage).catch(error => {
+                console.warn('Failed to send reply:', error);
+              });
+            }
+          } else {
+            const response = '❌ No commits found in the repository.';
+            if (interaction.deferred) {
+              await interaction.editReply(response).catch(console.warn);
+            } else {
+              await interaction.reply(response).catch(console.warn);
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching status:', error);
+          const errorMsg = '❌ Failed to fetch repository status. Check the logs for details.';
+          if (interaction.deferred) {
+            await interaction.editReply(errorMsg).catch(console.warn);
+          } else {
+            await interaction.reply(errorMsg).catch(console.warn);
+          }
+        }
+        break;
+
+      case 'test':
+        try {
+          const result = await testDiversionAPI();
+          const response = result.success
+            ? `✅ API Connection Test Successful!\n\nAvailable repositories:\n${result.repos.map(r => `- ${r.name}`).join('\n')}`
+            : `❌ API Connection Test Failed:\n${result.error}`;
+
+          if (interaction.deferred) {
+            await interaction.editReply(response).catch(console.warn);
+          } else {
+            await interaction.reply(response).catch(console.warn);
+          }
+        } catch (error) {
+          console.error('Error running API test:', error);
+          const errorMsg = '❌ Failed to test API connection. Check the logs for details.';
+          if (interaction.deferred) {
+            await interaction.editReply(errorMsg).catch(console.warn);
+          } else {
+            await interaction.reply(errorMsg).catch(console.warn);
+          }
+        }
+        break;
     }
   } catch (error) {
     console.error('Error handling interaction:', error);
+    const errorMsg = { 
+      content: 'There was an error processing your command!',
+      flags: 1 << 6 // Use flags instead of ephemeral property
+    };
+    
     try {
       if (!interaction.replied && !interaction.deferred) {
-        await interaction.reply({ content: 'There was an error processing your command!', ephemeral: true });
-      } else {
-        await interaction.editReply({ content: 'There was an error processing your command!' });
+        await interaction.reply(errorMsg);
+      } else if (interaction.deferred) {
+        await interaction.editReply(errorMsg);
       }
     } catch (followUpError) {
       console.error('Error sending error message:', followUpError);

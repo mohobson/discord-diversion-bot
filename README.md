@@ -69,6 +69,17 @@ Pull requests are welcome! Please follow these steps:
 
 5. Create a new Pull Request
 
+Go to Discord Developer Portal -> Your Application
+Go to OAuth2 -> URL Generator
+Select these scopes:
+bot
+applications.commands
+Select these bot permissions:
+Send Messages
+View Channels
+Read Message History
+Use Slash Commands
+
 ### License
 MIT -- feel free to use and modify.
 
