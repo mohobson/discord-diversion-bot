@@ -58,8 +58,8 @@ for (const envVar of requiredEnvVars) {
   }
 }
 
-// Construct API URL (updated format)
-const DIVERSION_API_URL = `${DIVERSION_BASE_URL}/api/v1/organizations/${DIVERSION_ORG}/repositories/${DIVERSION_REPO_NAME}/commits`;
+// Construct API URL (updated to match documentation)
+const DIVERSION_API_URL = `${DIVERSION_BASE_URL}/v0/repos/${DIVERSION_REPO_NAME}/commits`;
 
 // Log configuration for debugging
 console.log('Bot Configuration:');
@@ -205,14 +205,16 @@ client.once('ready', async () => {
 async function getLatestCommit() {
   try {
     console.log(`Fetching commits from: ${DIVERSION_API_URL}`);
-    const res = await fetch(DIVERSION_API_URL, {
+    
+    // Simplified headers to match documentation
+    const options = {
+      method: 'GET',
       headers: {
-        'Authorization': `Bearer ${DIVERSION_BEARER_TOKEN}`,
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'X-Diversion-Workspace': DIVERSION_WORKSPACE
+        'Authorization': `Bearer ${DIVERSION_BEARER_TOKEN}`
       }
-    });
+    };
+
+    const res = await fetch(DIVERSION_API_URL, options);
 
     if (!res.ok) {
       const errorText = await res.text();
@@ -220,10 +222,10 @@ async function getLatestCommit() {
       
       // Add more specific error handling
       if (res.status === 404) {
-        console.error('Repository or organization not found. Please verify:');
-        console.error(`1. Organization name: ${DIVERSION_ORG}`);
-        console.error(`2. Repository name: ${DIVERSION_REPO_NAME}`);
-        console.error(`3. Workspace name: ${DIVERSION_WORKSPACE}`);
+        console.error('Repository not found. Please verify:');
+        console.error(`1. Repository name: ${DIVERSION_REPO_NAME}`);
+        console.error('2. API URL format is correct');
+        console.error('3. Bearer token has correct permissions');
       } else if (res.status === 401) {
         console.error('Authentication failed. Please check your bearer token.');
       }
@@ -234,15 +236,13 @@ async function getLatestCommit() {
     const data = await res.json();
     console.log('Diversion API Response:', JSON.stringify(data, null, 2)); // Debug log
 
-    if (!data || (!Array.isArray(data) && !data.commits)) {
-      console.error('Unexpected API response format:', data);
-      throw new Error('Invalid API response format');
-    }
-
+    // Handle both array and object responses
     const commits = Array.isArray(data) ? data : data.commits || [];
     if (commits.length > 0) {
       return commits[0];
     }
+    
+    console.log('No commits found in repository');
     return null;
   } catch (err) {
     console.error('Error fetching latest commit:', err);
