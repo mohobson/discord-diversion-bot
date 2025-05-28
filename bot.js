@@ -32,6 +32,13 @@ const DIVERSION_BASE_URL = process.env.DIVERSION_BASE_URL || 'https://api.divers
 const DIVERSION_REPO_NAME = process.env.DIVERSION_REPO_NAME;
 const DIVERSION_WORKSPACE = process.env.DIVERSION_WORKSPACE || 'main';
 
+// Load Discord configuration
+const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
+const CHANNEL_ID = process.env.CHANNEL_ID;
+const CLIENT_ID = process.env.CLIENT_ID;
+const GUILD_ID = process.env.GUILD_ID;
+const DIVERSION_BEARER_TOKEN = process.env.DIVERSION_BEARER_TOKEN;
+
 // Update required environment variables
 const requiredEnvVars = [
   'DISCORD_TOKEN',
@@ -52,7 +59,13 @@ for (const envVar of requiredEnvVars) {
 // Construct API URL
 const DIVERSION_API_URL = `${DIVERSION_BASE_URL}/v1/repos/${DIVERSION_REPO_NAME}/commits`;
 
-console.log('Diversion API Configuration:');
+// Log configuration for debugging
+console.log('Bot Configuration:');
+console.log('Discord Configuration:');
+console.log(`Client ID: ${CLIENT_ID}`);
+console.log(`Guild ID: ${GUILD_ID}`);
+console.log(`Channel ID: ${CHANNEL_ID}`);
+console.log('\nDiversion API Configuration:');
 console.log(`Base URL: ${DIVERSION_BASE_URL}`);
 console.log(`Repository: ${DIVERSION_REPO_NAME}`);
 console.log(`Workspace: ${DIVERSION_WORKSPACE}`);
