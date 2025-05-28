@@ -104,29 +104,44 @@ client.once('ready', async () => {
   const rest = new REST({ version: '10' }).setToken(DISCORD_TOKEN);
 
   const commands = [
-    new SlashCommandBuilder().setName('ping').setDescription('Replies with Pong!'),
+    new SlashCommandBuilder()
+      .setName('ping')
+      .setDescription('Replies with Pong!'),
   ].map(cmd => cmd.toJSON());
 
   try {
     console.log('⏳ Registering slash command...');
+    // First try guild-specific command registration
     await rest.put(
       Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
       { body: commands }
-    );
+    ).catch(async (guildError) => {
+      console.log('Guild command registration failed, trying global registration...');
+      // If guild registration fails, try global registration
+      await rest.put(
+        Routes.applicationCommands(CLIENT_ID),
+        { body: commands }
+      );
+    });
     console.log('✅ Slash command registered');
   } catch (error) {
     if (error.code === 50001) {
       console.error('❌ Error: Bot lacks permissions to create slash commands.');
-      console.error('Please ensure the bot has the "applications.commands" scope and proper permissions.');
-      console.error('1. Go to Discord Developer Portal');
-      console.error('2. Select your application');
-      console.error('3. Go to OAuth2 -> URL Generator');
-      console.error('4. Select scopes: "bot" and "applications.commands"');
-      console.error('5. Select bot permissions: "Send Messages", "View Channels"');
-      console.error('6. Use the generated URL to reinvite the bot');
-      console.error('\nBot URL Generator: https://discord.com/developers/applications');
+      console.error('Please follow these steps to fix permissions:');
+      console.error('1. Go to Discord Developer Portal -> Your Application -> OAuth2 -> URL Generator');
+      console.error('2. For GUILD INSTALL (recommended), select these scopes:');
+      console.error('   - bot');
+      console.error('   - applications.commands');
+      console.error('3. Under BOT PERMISSIONS, select:');
+      console.error('   - Send Messages');
+      console.error('   - View Channels');
+      console.error('   - Read Message History');
+      console.error('4. Copy the URL and use it to add the bot to your server');
+      console.error('\nImportant: Use Guild Install instead of User Install');
+      console.error('Bot URL Generator: https://discord.com/developers/applications');
     } else {
       console.error('❌ Failed to register slash command:', error);
+      console.error('Error details:', error);
     }
   }
 
