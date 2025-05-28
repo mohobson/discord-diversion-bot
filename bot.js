@@ -149,57 +149,52 @@ client.once('ready', async () => {
   ].map(cmd => cmd.toJSON());
 
   try {
-    // Try guild-specific command registration first (faster updates)
-    console.log(`⏳ Registering slash commands to guild ${GUILD_ID}...`);
-    try {
-      const guildData = await rest.put(
-        Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
-        { body: commands }
-      );
-      console.log('✅ Guild commands registered:', guildData);
-    } catch (guildError) {
-      console.log('Guild command registration failed:', guildError.message);
-      console.log('Attempting global command registration...');
-      
-      // Fall back to global command registration
-      const globalData = await rest.put(
-        Routes.applicationCommands(CLIENT_ID),
-        { body: commands }
-      );
-      console.log('✅ Global commands registered:', globalData);
-    }
+    // Register commands globally (may take up to an hour to propagate)
+    console.log('⏳ Registering commands globally...');
+    const globalData = await rest.put(
+      Routes.applicationCommands(CLIENT_ID),
+      { body: commands }
+    );
+    
+    console.log('✅ Commands registered globally. They may take up to an hour to appear.');
+    console.log('Registered commands:', globalData.map(cmd => ({
+      name: cmd.name,
+      id: cmd.id,
+      description: cmd.description
+    })));
 
-    // Verify registered commands
+    // Try to fetch global commands to verify
     try {
       const registeredCommands = await rest.get(
-        Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID)
+        Routes.applicationCommands(CLIENT_ID)
       );
-      console.log('Currently registered commands:', registeredCommands);
+      console.log('\nVerifying global commands:');
+      registeredCommands.forEach(cmd => {
+        console.log(`- /${cmd.name}: ${cmd.description} (ID: ${cmd.id})`);
+      });
     } catch (error) {
-      console.error('Failed to fetch registered commands:', error);
+      console.log('Note: Could not verify commands, but they may still be registered correctly.');
     }
+
+    console.log('\n⚠️ Commands are registered but may take up to an hour to appear in Discord.');
+    console.log('You can check the commands by typing / in your server.');
   } catch (error) {
+    console.error('❌ Failed to register commands:', error);
     if (error.code === 50001) {
-      console.error('❌ Error: Bot lacks permissions to create slash commands.');
-      console.error('Please ensure the bot has the "applications.commands" scope and proper permissions.');
-      console.error('1. Go to Discord Developer Portal -> Your Application -> OAuth2 -> URL Generator');
-      console.error('2. Select these SCOPES:');
-      console.error('   - applications.commands');
+      console.error('\nPermission Error: Please check bot permissions');
+      console.error('1. Go to Discord Developer Portal -> OAuth2 -> URL Generator');
+      console.error('2. Select these scopes:');
       console.error('   - bot');
-      console.error('3. Select these BOT PERMISSIONS:');
+      console.error('   - applications.commands');
+      console.error('3. Select permissions:');
       console.error('   - Send Messages');
       console.error('   - View Channels');
-      console.error('   - Use Slash Commands');
-      console.error('4. Copy the generated URL below the permissions');
-      console.error('5. Remove the bot from your server');
-      console.error('6. Open the new URL and add the bot back');
-      console.error('\nBot URL Generator: https://discord.com/developers/applications');
-    } else {
-      console.error('❌ Failed to register slash commands:', error);
-      console.error('Error details:', error);
+      console.error('4. Use the generated URL to reinvite the bot');
     }
   }
 
+  // Start the commit checking interval
+  console.log('\n📡 Starting commit monitoring...');
   setInterval(checkForNewCommits, 5 * 60 * 1000); // Poll every 5 minutes
 });
 
