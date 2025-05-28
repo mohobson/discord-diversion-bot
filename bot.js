@@ -7,10 +7,23 @@ import { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, Events } 
 import fetch from 'node-fetch';
 
 import http from 'http';
-http.createServer((req, res) => {
-  res.writeHead(200);
-  res.end('Bot is running');
-}).listen(process.env.PORT || 3000);
+
+// Validate required environment variables
+const requiredEnvVars = [
+  'DISCORD_TOKEN',
+  'CHANNEL_ID',
+  'DIVERSION_API_URL',
+  'DIVERSION_BEARER_TOKEN',
+  'CLIENT_ID',
+  'GUILD_ID'
+];
+
+for (const envVar of requiredEnvVars) {
+  if (!process.env[envVar]) {
+    console.error(`Missing required environment variable: ${envVar}`);
+    process.exit(1);
+  }
+}
 
 // Load from .env
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
@@ -32,37 +45,60 @@ const client = new Client({ intents: [
 
 async function checkForNewCommits() {
   try {
+    // Add API version and accept headers
     const res = await fetch(DIVERSION_API_URL, {
       headers: {
-        Authorization: `Bearer ${DIVERSION_BEARER_TOKEN}`
+        'Authorization': `Bearer ${DIVERSION_BEARER_TOKEN}`,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
       }
     });
 
     if (!res.ok) {
-      console.error(`Diversion API Error: ${res.status}`);
+      console.error(`Diversion API Error: ${res.status} - ${await res.text()}`);
       return;
     }
 
-    const commits = await res.json();
-    if (commits && commits.length > 0) {
+    const data = await res.json();
+    console.log('Diversion API Response:', JSON.stringify(data, null, 2)); // Debug log
+
+    // Handle Diversion's specific response format
+    const commits = Array.isArray(data) ? data : data.commits || [];
+    if (commits.length > 0) {
       const latest = commits[0];
+      
+      // Only notify if this is a new commit
       if (latest.id !== lastCommitId) {
         lastCommitId = latest.id;
-
+        
         const channel = await client.channels.fetch(CHANNEL_ID);
         if (channel) {
-          channel.send(`🆕 New commit by **${latest.author}**: ${latest.message}`);
+          // Format the message using Diversion's specific fields
+          const commitMessage = `🆕 New commit in Diversion:\n`
+            + `Author: **${latest.author_name || latest.author}**\n`
+            + `Message: ${latest.commit_message || latest.message}\n`
+            + `Branch: ${latest.branch || 'main'}\n`
+            + `Workspace: ${latest.workspace || 'N/A'}`;
+          
+          await channel.send(commitMessage);
         }
       }
     }
   } catch (err) {
     console.error('Error checking for commits:', err);
+    // Log detailed error information
+    if (err.response) {
+      console.error('Response status:', err.response.status);
+      console.error('Response data:', err.response.data);
+    }
   }
 }
 
 // ✅ Register slash command once
 client.once('ready', async () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
+  console.log('Connected to Discord successfully');
+  console.log('Watching repository for changes...');
 
   // Register /ping command
   const rest = new REST({ version: '10' }).setToken(DISCORD_TOKEN);
@@ -90,8 +126,18 @@ client.on(Events.InteractionCreate, async interaction => {
   if (!interaction.isChatInputCommand()) return;
 
   if (interaction.commandName === 'ping') {
-    await interaction.reply('🏓 Pong!');
+    await interaction.reply('Pong!');
   }
+});
+
+// Add error handling for Discord client
+client.on('error', error => {
+  console.error('Discord client error:', error);
+});
+
+client.on('disconnect', () => {
+  console.log('Bot disconnected! Attempting to reconnect...');
+  client.login(DISCORD_TOKEN).catch(console.error);
 });
 
 client.login(DISCORD_TOKEN);
