@@ -115,7 +115,19 @@ client.once('ready', async () => {
     );
     console.log('✅ Slash command registered');
   } catch (error) {
-    console.error('❌ Failed to register slash command:', error);
+    if (error.code === 50001) {
+      console.error('❌ Error: Bot lacks permissions to create slash commands.');
+      console.error('Please ensure the bot has the "applications.commands" scope and proper permissions.');
+      console.error('1. Go to Discord Developer Portal');
+      console.error('2. Select your application');
+      console.error('3. Go to OAuth2 -> URL Generator');
+      console.error('4. Select scopes: "bot" and "applications.commands"');
+      console.error('5. Select bot permissions: "Send Messages", "View Channels"');
+      console.error('6. Use the generated URL to reinvite the bot');
+      console.error('\nBot URL Generator: https://discord.com/developers/applications');
+    } else {
+      console.error('❌ Failed to register slash command:', error);
+    }
   }
 
   setInterval(checkForNewCommits, 5 * 60 * 1000); // Poll every 5 minutes
