@@ -149,35 +149,53 @@ client.once('ready', async () => {
   ].map(cmd => cmd.toJSON());
 
   try {
-    console.log('⏳ Registering slash commands...');
-    await rest.put(
-      Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
-      { body: commands }
-    ).catch(async (guildError) => {
-      console.log('Guild command registration failed, trying global registration...');
-      await rest.put(
+    // Try guild-specific command registration first (faster updates)
+    console.log(`⏳ Registering slash commands to guild ${GUILD_ID}...`);
+    try {
+      const guildData = await rest.put(
+        Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
+        { body: commands }
+      );
+      console.log('✅ Guild commands registered:', guildData);
+    } catch (guildError) {
+      console.log('Guild command registration failed:', guildError.message);
+      console.log('Attempting global command registration...');
+      
+      // Fall back to global command registration
+      const globalData = await rest.put(
         Routes.applicationCommands(CLIENT_ID),
         { body: commands }
       );
-    });
-    console.log('✅ Slash commands registered');
+      console.log('✅ Global commands registered:', globalData);
+    }
+
+    // Verify registered commands
+    try {
+      const registeredCommands = await rest.get(
+        Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID)
+      );
+      console.log('Currently registered commands:', registeredCommands);
+    } catch (error) {
+      console.error('Failed to fetch registered commands:', error);
+    }
   } catch (error) {
     if (error.code === 50001) {
       console.error('❌ Error: Bot lacks permissions to create slash commands.');
-      console.error('Please follow these steps to fix permissions:');
+      console.error('Please ensure the bot has the "applications.commands" scope and proper permissions.');
       console.error('1. Go to Discord Developer Portal -> Your Application -> OAuth2 -> URL Generator');
-      console.error('2. For GUILD INSTALL (recommended), select these scopes:');
-      console.error('   - bot');
+      console.error('2. Select these SCOPES:');
       console.error('   - applications.commands');
-      console.error('3. Under BOT PERMISSIONS, select:');
+      console.error('   - bot');
+      console.error('3. Select these BOT PERMISSIONS:');
       console.error('   - Send Messages');
       console.error('   - View Channels');
-      console.error('   - Read Message History');
-      console.error('4. Copy the URL and use it to add the bot to your server');
-      console.error('\nImportant: Use Guild Install instead of User Install');
-      console.error('Bot URL Generator: https://discord.com/developers/applications');
+      console.error('   - Use Slash Commands');
+      console.error('4. Copy the generated URL below the permissions');
+      console.error('5. Remove the bot from your server');
+      console.error('6. Open the new URL and add the bot back');
+      console.error('\nBot URL Generator: https://discord.com/developers/applications');
     } else {
-      console.error('❌ Failed to register slash command:', error);
+      console.error('❌ Failed to register slash commands:', error);
       console.error('Error details:', error);
     }
   }
