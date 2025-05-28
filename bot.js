@@ -31,6 +31,7 @@ server.listen(PORT, () => {
 const DIVERSION_BASE_URL = process.env.DIVERSION_BASE_URL || 'https://api.diversion.dev';
 const DIVERSION_REPO_NAME = process.env.DIVERSION_REPO_NAME;
 const DIVERSION_WORKSPACE = process.env.DIVERSION_WORKSPACE || 'main';
+const DIVERSION_ORG = process.env.DIVERSION_ORG; // Add organization name
 
 // Load Discord configuration
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
@@ -45,6 +46,7 @@ const requiredEnvVars = [
   'CHANNEL_ID',
   'DIVERSION_BEARER_TOKEN',
   'DIVERSION_REPO_NAME',
+  'DIVERSION_ORG', // Make organization required
   'CLIENT_ID',
   'GUILD_ID'
 ];
@@ -56,8 +58,8 @@ for (const envVar of requiredEnvVars) {
   }
 }
 
-// Construct API URL
-const DIVERSION_API_URL = `${DIVERSION_BASE_URL}/v1/repos/${DIVERSION_REPO_NAME}/commits`;
+// Construct API URL (updated format)
+const DIVERSION_API_URL = `${DIVERSION_BASE_URL}/api/v1/organizations/${DIVERSION_ORG}/repositories/${DIVERSION_REPO_NAME}/commits`;
 
 // Log configuration for debugging
 console.log('Bot Configuration:');
@@ -67,6 +69,7 @@ console.log(`Guild ID: ${GUILD_ID}`);
 console.log(`Channel ID: ${CHANNEL_ID}`);
 console.log('\nDiversion API Configuration:');
 console.log(`Base URL: ${DIVERSION_BASE_URL}`);
+console.log(`Organization: ${DIVERSION_ORG}`);
 console.log(`Repository: ${DIVERSION_REPO_NAME}`);
 console.log(`Workspace: ${DIVERSION_WORKSPACE}`);
 console.log(`Full API URL: ${DIVERSION_API_URL}`);
@@ -214,11 +217,27 @@ async function getLatestCommit() {
     if (!res.ok) {
       const errorText = await res.text();
       console.error('Diversion API Error Response:', errorText);
+      
+      // Add more specific error handling
+      if (res.status === 404) {
+        console.error('Repository or organization not found. Please verify:');
+        console.error(`1. Organization name: ${DIVERSION_ORG}`);
+        console.error(`2. Repository name: ${DIVERSION_REPO_NAME}`);
+        console.error(`3. Workspace name: ${DIVERSION_WORKSPACE}`);
+      } else if (res.status === 401) {
+        console.error('Authentication failed. Please check your bearer token.');
+      }
+      
       throw new Error(`Diversion API Error: ${res.status} - ${errorText}`);
     }
 
     const data = await res.json();
     console.log('Diversion API Response:', JSON.stringify(data, null, 2)); // Debug log
+
+    if (!data || (!Array.isArray(data) && !data.commits)) {
+      console.error('Unexpected API response format:', data);
+      throw new Error('Invalid API response format');
+    }
 
     const commits = Array.isArray(data) ? data : data.commits || [];
     if (commits.length > 0) {
